@@ -1,0 +1,9 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+sqlalchemy==2.0.23
+psycopg2-binary==2.9.9
+pydantic[email]==2.5.0
+pyroscope-io
+python-multipart==0.0.6
+aiohttp==3.9.1
+

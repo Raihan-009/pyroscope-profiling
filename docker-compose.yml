@@ -1,0 +1,71 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: fastapi-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: fastapi_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  pyroscope:
+    image: pyroscope/pyroscope:latest
+    container_name: fastapi-pyroscope
+    command:
+      - "server"
+    ports:
+      - "4040:4040"
+    volumes:
+      - pyroscope_data:/var/lib/pyroscope
+    environment:
+      - PYROSCOPE_STORAGE_PATH=/var/lib/pyroscope
+    networks:
+      - app-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:4040/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  fastapi-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi-app
+    environment:
+      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/fastapi_db
+      - PYROSCOPE_APP_NAME=fastapi-app
+      - PYROSCOPE_SERVER=http://pyroscope:4040
+      - ENVIRONMENT=development
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      pyroscope:
+        condition: service_started
+    networks:
+      - app-network
+    volumes:
+      - ./app:/app/app
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+  pyroscope_data:
+
+networks:
+  app-network:
+    driver: bridge
+
